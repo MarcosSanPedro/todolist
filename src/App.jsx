@@ -1,17 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect  } from 'react';
+import { db } from './firebase';
+import { addDoc, collection,  deleteDoc,  getDocs, doc } from 'firebase/firestore';
 
 const TodoList = () => {
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
 
-  const addTask = () => {
+  const addTask = async () => {
     if (newTask.trim() !== '') {
-      setTasks([...tasks, { id: Date.now(), text: newTask, completed: false }]);
+      const taskReference = collection(db, "todos");
+      const docRef = await addDoc(taskReference, {
+        text: newTask,
+        done: false,
+      });
+  
+      const task = {
+        id: docRef.id,
+        text: newTask,
+        done: false,
+      };
+  
+      setTasks([...tasks, task]);
       setNewTask('');
     }
   };
+  
 
-  const deleteTask = (taskId) => {
+  
+  
+
+  const deleteTask = async (taskId) => {
+    await deleteDoc(doc(db, "todos", taskId))
     setTasks(tasks.filter((task) => task.id !== taskId));
   };
   
@@ -19,11 +38,26 @@ const TodoList = () => {
   const toggleTaskCompletion = (taskId) => {
     setTasks(
       tasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
+        task.id === taskId ? { ...task, done: !task.done } : task
       )
     );
   };
+  useEffect(()=>{
+    const todoReference = collection(db,"todos")
 
+    const getData = async () =>{
+    const data = await getDocs(todoReference);
+    const todos = data.docs.map((doc)=>({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    setTasks(todos)
+  }
+    getData()
+},[]);
+
+ 
   return (
     <div className="max-w-md mx-auto mt-8">
       <h1 className="text-2xl font-bold mb-4">To-Do List</h1>
@@ -43,7 +77,7 @@ const TodoList = () => {
         {tasks.map((task) => (
           <li key={task.id} className="flex items-center justify-between mb-2">
             <span  
-              className={`cursor-pointer ${task.completed ? 'line-through text-gray-500' : ''}`}
+              className={`cursor-pointer ${task.done ? 'line-through text-gray-500' : ''}`}
               onClick={() => toggleTaskCompletion(task.id)}
             >
               {task.text}
